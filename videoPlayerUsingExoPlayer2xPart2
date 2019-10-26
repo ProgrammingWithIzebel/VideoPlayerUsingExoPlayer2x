@@ -1,0 +1,126 @@
+videoAdapter:
+
+Intent intent = new Intent(context, videoPlayer.class);
+intent.putExtra("position",videoHolder.getAdapterPosition());
+intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+context.startActivity(intent);
+
+
+
+activity_video_player.xml
+
+
+    <com.google.android.exoplayer2.ui.PlayerView
+        android:id="@+id/player_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:repeat_toggle_modes="all|one" >
+
+    </com.google.android.exoplayer2.ui.PlayerView>
+
+
+
+
+
+VideoPlayer.java
+
+
+public class videoPlayer extends AppCompatActivity implements Player.EventListener {
+
+    PlayerView playerView;
+    SimpleExoPlayer exoPlayerInstance;
+    DataSource.Factory dataSourceFactory;
+    MediaSource firstSource;
+    int position = -1;
+    String videoPath;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_video_player);
+
+        Objects.requireNonNull(getSupportActionBar()).hide(); // to hide action bar
+
+        position = getIntent().getIntExtra("position", -1);
+        videoPath = String.valueOf(MainActivity.fileArrayList.get(position));
+
+        // Binding xml view
+        playerView = findViewById(R.id.player_view);
+        // Setup Exoplayer instance
+        exoPlayerInstance = ExoPlayerFactory.newSimpleInstance(this);
+        // Produces DataSource instances through which media data is loaded.
+        dataSourceFactory = new DefaultDataSourceFactory(this, Util.getUserAgent(this, "HD Audio and Video Player"));
+
+        // Getting media from sdcard storage
+        firstSource = new ExtractorMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(videoPath));
+        //Prepare the exoPlayerInstance with the source
+        exoPlayerInstance.prepare(firstSource);
+        playerView.setPlayer(exoPlayerInstance);
+        playerView.requestFocus();
+        exoPlayerInstance.setPlayWhenReady(true); // starts the video or else it u need to do it manually
+        //When video ends
+        exoPlayerInstance.addListener(new Player.EventListener() {
+            @Override
+            public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+                /*// Getting media from sdcard storage
+                firstSource = new ExtractorMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(String.valueOf(MainActivity.fileArrayList.get(position+1))));
+                //Prepare the exoPlayerInstance with the source
+                exoPlayerInstance.prepare(firstSource);
+                playerView.setPlayer(exoPlayerInstance);*/
+            }
+            @Override
+            public void onPlayerError(ExoPlaybackException error) {
+                exoPlayerInstance.retry();
+            }
+            @SuppressWarnings("deprecation")
+            @Override
+            public void onPlayerStateChanged(boolean playWhenReady, int state) {
+
+                if (state == ExoPlayer.STATE_ENDED) {
+                    position = position +1;
+                    // Getting media from sdcard storage
+                    firstSource = new ExtractorMediaSource.Factory(dataSourceFactory).createMediaSource
+                            (Uri.parse(String.valueOf(MainActivity.fileArrayList.get(position))));
+                    //Prepare the exoPlayerInstance with the source
+                    exoPlayerInstance.prepare(firstSource);
+                    playerView.setPlayer(exoPlayerInstance);
+                    exoPlayerInstance.next();
+                }
+            }
+        });
+    }
+    private void releasePlayer() {
+        if (exoPlayerInstance != null) {
+            exoPlayerInstance.release();
+            exoPlayerInstance = null;
+        }
+    }
+
+    private void resumePlayer() {
+        if (exoPlayerInstance != null) {
+
+            exoPlayerInstance.setPlayWhenReady(true);
+            exoPlayerInstance.getPlaybackState();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        resumePlayer();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        releasePlayer();
+    }
+
+}
+
